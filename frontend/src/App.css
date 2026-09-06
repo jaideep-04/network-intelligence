@@ -1,0 +1,193 @@
+/* =========================================================
+   RE5 - PREDICTIVE RISK
+   ========================================================= */
+
+.risk-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.risk-control-panel {
+  display: flex;
+  align-items: end;
+  gap: 14px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+}
+
+.risk-control-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-weight: 600;
+}
+
+.risk-control-panel input {
+  width: 180px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-size: 14px;
+}
+
+.risk-header {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.risk-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 18px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.risk-header strong {
+  font-size: 15px;
+  word-break: break-word;
+}
+
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.feature-card span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.feature-card strong {
+  font-size: 20px;
+}
+
+.risk-action {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.predict-button {
+  min-width: 150px;
+}
+
+.prediction-card {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.prediction-card > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+}
+
+.prediction-card span {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.prediction-card strong {
+  font-size: 28px;
+}
+
+.prediction-score {
+  border-left: 5px solid #374151;
+}
+
+.prediction-level {
+  border-left: 5px solid #6b7280;
+}
+
+.prediction-version {
+  border-left: 5px solid #9ca3af;
+}
+
+.explanation-panel {
+  margin-top: 16px;
+  padding: 20px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.explanation-panel strong {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.explanation-panel p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.stub-notice {
+  margin-top: 16px;
+  padding: 18px;
+  background: #f3f4f6;
+  border: 1px dashed #6b7280;
+  border-radius: 10px;
+}
+
+.stub-notice strong {
+  display: block;
+  margin-bottom: 7px;
+}
+
+.stub-notice p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .risk-header {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .feature-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .prediction-card {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .risk-control-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .risk-control-panel input {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .risk-header,
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}

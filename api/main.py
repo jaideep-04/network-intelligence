@@ -3,6 +3,7 @@ import sqlite3
 import ast
 
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timezone
 
 from pydantic import BaseModel, Field
@@ -19,6 +20,15 @@ app = FastAPI(
     title="Network Intelligence API",
     version="1.0.0",
     description="REST API for telecom network intelligence analytics",
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 

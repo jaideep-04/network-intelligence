@@ -1,0 +1,573 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.topbar {
+  background: #111827;
+  color: white;
+  padding: 22px 40px;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.topbar p {
+  margin: 6px 0 0;
+  color: #d1d5db;
+}
+
+
+/* =========================================================
+   NAVIGATION
+   ========================================================= */
+
+.nav {
+  background: white;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0 40px;
+  display: flex;
+  gap: 4px;
+}
+
+.nav-button {
+  border: none;
+  background: white;
+  padding: 16px 20px;
+  color: #4b5563;
+  border-bottom: 3px solid transparent;
+}
+
+.nav-button:hover {
+  background: #f9fafb;
+}
+
+.nav-button.active {
+  color: #111827;
+  font-weight: bold;
+  border-bottom-color: #111827;
+}
+
+.nav-button.disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+
+/* =========================================================
+   GENERAL
+   ========================================================= */
+
+.dashboard {
+  padding: 30px 40px;
+}
+
+.section-heading {
+  margin-bottom: 24px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.section-heading p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+
+/* =========================================================
+   CARDS
+   ========================================================= */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+.card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 22px;
+}
+
+.card-label {
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.card-value {
+  margin-top: 10px;
+  font-size: 27px;
+  font-weight: bold;
+}
+
+.card-note {
+  margin-top: 8px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+
+/* =========================================================
+   REPORTING
+   ========================================================= */
+
+.reporting {
+  margin-top: 24px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 18px 22px;
+}
+
+.reporting strong {
+  display: block;
+  font-size: 14px;
+}
+
+.reporting span {
+  display: block;
+  margin-top: 6px;
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.reporting small {
+  display: block;
+  margin-top: 5px;
+  color: #6b7280;
+}
+
+
+/* =========================================================
+   STATES
+   ========================================================= */
+
+.state-message {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 30px;
+  color: #6b7280;
+}
+
+.error-banner {
+  margin: 20px 40px;
+  padding: 14px 18px;
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: #991b1b;
+  border-radius: 6px;
+}
+
+
+/* =========================================================
+   GRID EXPLORER
+   ========================================================= */
+
+.grid-page {
+  padding: 30px 40px;
+}
+
+.page-title {
+  margin-bottom: 24px;
+}
+
+.page-title h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.page-title p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.grid-search {
+  background: white;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: flex;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.grid-search label {
+  display: block;
+  font-size: 14px;
+  font-weight: bold;
+  margin-bottom: 7px;
+}
+
+.grid-search input {
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 15px;
+  width: 180px;
+}
+
+.grid-search button {
+  padding: 10px 16px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: white;
+  border-radius: 5px;
+}
+
+.grid-results {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.grid-header {
+  padding: 22px 24px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.grid-header h2 {
+  margin: 0;
+  font-size: 22px;
+}
+
+.grid-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.grid-timestamp {
+  text-align: right;
+}
+
+.grid-timestamp span {
+  display: block;
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 5px;
+}
+
+.grid-timestamp strong {
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th,
+td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  white-space: nowrap;
+}
+
+th {
+  background: #f9fafb;
+  font-size: 13px;
+}
+
+td {
+  font-size: 14px;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}
+
+
+/* =========================================================
+   HOTSPOTS PAGE
+   ========================================================= */
+
+.hotspots-page {
+  padding: 30px 40px;
+}
+
+.filter-bar {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 18px 20px;
+  display: flex;
+  gap: 20px;
+  margin-bottom: 16px;
+}
+
+.filter-bar label {
+  display: block;
+  font-size: 13px;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.filter-bar select {
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  min-width: 130px;
+}
+
+
+/* =========================================================
+   STATUS LABELS
+   ========================================================= */
+
+.status-legend {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid;
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.3px;
+}
+
+.status.normal {
+  border-color: #6b7280;
+}
+
+.status.attention {
+  border-color: #d97706;
+}
+
+.status.high {
+  border-color: #b91c1c;
+}
+
+.legend-note {
+  color: #6b7280;
+  font-size: 12px;
+  margin-left: 6px;
+}
+
+
+/* =========================================================
+   HOTSPOT + MAP LAYOUT
+   ========================================================= */
+
+.hotspot-layout {
+  display: grid;
+  grid-template-columns: 42% 58%;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.hotspot-table-card,
+.map-card,
+.alerts-card {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.panel-header span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #f9fafb;
+}
+
+
+/* =========================================================
+   MAP
+   ========================================================= */
+
+.network-map {
+  width: 100%;
+  height: 560px;
+}
+
+.map-loading {
+  padding: 12px 18px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.selected-grid {
+  border-top: 1px solid #e5e7eb;
+  padding: 15px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.selected-grid strong {
+  display: block;
+  font-size: 14px;
+}
+
+.selected-grid span {
+  display: block;
+  margin-top: 5px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.selected-grid button {
+  padding: 9px 13px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: white;
+  border-radius: 5px;
+}
+
+
+/* =========================================================
+   ALERTS
+   ========================================================= */
+
+.alerts-card {
+  margin-bottom: 30px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 1000px) {
+
+  .cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .hotspot-layout {
+    grid-template-columns: 1fr;
+  }
+
+}
+
+
+@media (max-width: 700px) {
+
+  .topbar {
+    padding: 20px;
+  }
+
+  .nav {
+    padding: 0 20px;
+    overflow-x: auto;
+  }
+
+  .dashboard,
+  .grid-page,
+  .hotspots-page {
+    padding: 20px;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-search {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .grid-search input {
+    width: 100%;
+  }
+
+  .grid-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .grid-timestamp {
+    text-align: left;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+  }
+
+  .network-map {
+    height: 450px;
+  }
+
+  .selected-grid {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+}
