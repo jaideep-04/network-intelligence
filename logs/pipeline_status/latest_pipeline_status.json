@@ -1,0 +1,23 @@
+{
+  "run_id": "DE7_20260905T171610Z",
+  "run_timestamp": "2026-09-05T17:16:10.625501+00:00",
+  "status": "SUCCESS",
+  "tasks": {
+    "ingest": "SUCCESS",
+    "validate": "SUCCESS",
+    "spark_process": "SUCCESS",
+    "load_warehouse": "SUCCESS",
+    "quality_check": "SUCCESS",
+    "notify": "PENDING"
+  },
+  "rows_in": 1679994,
+  "rows_rejected": 7,
+  "nulls_handled": null,
+  "rows_published": 1679994,
+  "as_of": "2013-11-07T15:00:00.000-08:00",
+  "dim_time_rows": 168,
+  "dim_grid_rows": 10000,
+  "fact_rows": 1679994,
+  "orphan_time_keys": 0,
+  "orphan_grid_keys": 0
+}

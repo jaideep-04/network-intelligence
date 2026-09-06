@@ -51,11 +51,14 @@ SP3_OUTPUT_DIR = os.path.join(
 # GEOJSON REFERENCE
 # ------------------------------------------------------------
 
-GEOJSON_PATH = os.path.join(
-    BASE_DIR,
-    "data",
-    "reference",
-    "milano-grid.geojson"
+GEOJSON_PATH = os.environ.get(
+    "MILANO_GEOJSON_PATH",
+    os.path.join(
+        BASE_DIR,
+        "data",
+        "reference",
+        "milano-grid.geojson"
+    )
 )
 
 

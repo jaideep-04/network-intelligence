@@ -71,19 +71,31 @@ DATA_DIR = os.path.join(
     "data"
 )
 
-PROCESSED_DIR = os.path.join(
-    DATA_DIR,
-    "processed"
+RAW_DIR = os.environ.get(
+    "DE3_RAW_DIR",
+    os.path.join(DATA_DIR, "raw")
 )
 
-ANALYTICS_DIR = os.path.join(
-    DATA_DIR,
-    "analytics"
+PROCESSED_DIR = os.environ.get(
+    "DE3_PROCESSED_DIR",
+    os.path.join(DATA_DIR, "processed")
 )
 
-REFERENCE_DIR = os.path.join(
-    DATA_DIR,
-    "reference"
+ANALYTICS_DIR = os.environ.get(
+    "DE3_ANALYTICS_DIR",
+    os.path.join(DATA_DIR, "analytics")
+)
+
+REFERENCE_DIR = os.path.dirname(
+    os.environ.get(
+        "MILANO_GEOJSON_PATH",
+        os.path.join(DATA_DIR, "reference", "milano-grid.geojson")
+    )
+)
+
+GEOJSON_PATH = os.environ.get(
+    "MILANO_GEOJSON_PATH",
+    os.path.join(DATA_DIR, "reference", "milano-grid.geojson")
 )
 
 
