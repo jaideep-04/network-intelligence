@@ -111,11 +111,13 @@ dim_grid = (
 
 grid_count = dim_grid.count()
 print(f"dim_grid rows: {grid_count:,}")
-
-dim_grid.write.mode("overwrite").option("header", "true").csv(
-    str(STAGING / "dim_grid")
-)
-
+dim_grid.write \
+    .mode("overwrite") \
+    .option("header", "true") \
+    .option("quote", '"') \
+    .option("escape", '"') \
+    .option("quoteAll", "true") \
+    .csv(str(STAGING / "dim_grid"))
 print("\n[5] Creating fact_network_activity...")
 
 time_lookup = dim_time.select("timestamp", "time_id")
