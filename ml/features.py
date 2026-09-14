@@ -5,29 +5,24 @@ Creates the stored ML feature table used by FastAPI API4.
 
 Feature window convention
 --------------------------
-For feature_timestamp = t, all features use only data available
+For feature_timestamp = t, all features use only observations
 at or before t.
 
-Features:
-    avg_activity
-    activity_growth
-    active_hours
-    peak_ratio
-    variability
-    internet_share
+Recent window:
+    t-23h ... t
 
-Window:
-    Recent window  = t-23h ... t       (24 hourly observations)
-    Baseline window = t-47h ... t-24h  (24 hourly observations)
+Baseline window:
+    t-47h ... t-24h
 
-Therefore activity_growth compares the most recent 24 hours
-against the preceding 24 hours.
+Therefore activity_growth compares the recent 24-hour average
+against the preceding 24-hour average.
 
-No future timestamps are used.
+No future observations are used.
 """
 
 from __future__ import annotations
 
+import math
 import sqlite3
 from pathlib import Path
 
@@ -36,10 +31,20 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "warehouse" / "network_analytics.db"
 
 
-def validate_source_tables(connection: sqlite3.Connection) -> None:
-    """Ensure the warehouse contains the required source table/columns."""
+FEATURE_COLUMNS = [
+    "avg_activity",
+    "activity_growth",
+    "active_hours",
+    "peak_ratio",
+    "variability",
+    "internet_share",
+]
 
-    required_columns = {
+
+def validate_source_tables(connection: sqlite3.Connection) -> None:
+    """Validate the warehouse source tables."""
+
+    required_fact_columns = {
         "time_id",
         "grid_id",
         "sms_in",
@@ -50,34 +55,49 @@ def validate_source_tables(connection: sqlite3.Connection) -> None:
         "total_activity",
     }
 
-    rows = connection.execute(
+    fact_rows = connection.execute(
         "PRAGMA table_info(fact_network_activity)"
     ).fetchall()
 
-    if not rows:
+    if not fact_rows:
         raise RuntimeError(
-            "Required table fact_network_activity is missing "
-            "from the analytics warehouse."
+            "Required table fact_network_activity is missing."
         )
 
-    actual_columns = {row[1] for row in rows}
-    missing = required_columns - actual_columns
+    actual_fact_columns = {row[1] for row in fact_rows}
+
+    missing = required_fact_columns - actual_fact_columns
 
     if missing:
         raise RuntimeError(
-            "Missing required warehouse columns: "
+            "Missing fact_network_activity columns: "
             + ", ".join(sorted(missing))
+        )
+
+    time_rows = connection.execute(
+        "PRAGMA table_info(dim_time)"
+    ).fetchall()
+
+    if not time_rows:
+        raise RuntimeError(
+            "Required table dim_time is missing."
+        )
+
+    actual_time_columns = {row[1] for row in time_rows}
+
+    if "time_id" not in actual_time_columns:
+        raise RuntimeError(
+            "dim_time is missing required column: time_id"
+        )
+
+    if "timestamp" not in actual_time_columns:
+        raise RuntimeError(
+            "dim_time is missing required column: timestamp"
         )
 
 
 def create_feature_table(connection: sqlite3.Connection) -> None:
-    """
-    Create the stored network_features table.
-
-    Only complete 48-hour histories are published because
-    activity_growth requires both a recent 24-hour window and
-    a preceding 24-hour baseline window.
-    """
+    """Create the persistent ML feature table."""
 
     connection.execute("DROP TABLE IF EXISTS network_features")
 
@@ -111,35 +131,15 @@ def create_feature_table(connection: sqlite3.Connection) -> None:
 
 def build_features(connection: sqlite3.Connection) -> None:
     """
-    Build features using SQLite window functions.
+    Build ML2 features.
 
-    The source data is already one row per grid/hour in
-    fact_network_activity.
+    For every grid and feature timestamp t:
 
-    We calculate:
+        Recent window  = t-23h ... t
+        Baseline       = t-47h ... t-24h
 
-    avg_activity:
-        mean total_activity over the trailing 24 hours.
-
-    activity_growth:
-        (recent_24h_avg - previous_24h_avg)
-        / previous_24h_avg
-
-    active_hours:
-        number of trailing 24-hour observations with
-        total_activity > 0.
-
-    peak_ratio:
-        maximum total_activity in recent 24 hours
-        divided by recent 24-hour average.
-
-    variability:
-        population standard deviation of total_activity
-        over the recent 24-hour window.
-
-    internet_share:
-        sum(internet_activity) / sum(total_activity)
-        over the recent 24-hour window.
+    A feature row is produced only when the grid has a complete
+    48-hour history ending at t.
     """
 
     sql = """
@@ -153,149 +153,130 @@ def build_features(connection: sqlite3.Connection) -> None:
         variability,
         internet_share
     )
-    WITH ordered AS (
+
+    WITH grid_hours AS (
         SELECT
             f.grid_id,
             t.timestamp AS feature_timestamp,
-
             f.total_activity,
             f.internet_activity,
 
             ROW_NUMBER() OVER (
                 PARTITION BY f.grid_id
                 ORDER BY t.timestamp
-            ) AS rn,
-
-            AVG(f.total_activity) OVER (
-                PARTITION BY f.grid_id
-                ORDER BY t.timestamp
-                ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
-            ) AS recent_avg,
-
-            AVG(f.total_activity) OVER (
-                PARTITION BY f.grid_id
-                ORDER BY t.timestamp
-                ROWS BETWEEN 47 PRECEDING AND 24 PRECEDING
-            ) AS previous_avg,
-
-            COUNT(f.total_activity) OVER (
-                PARTITION BY f.grid_id
-                ORDER BY t.timestamp
-                ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
-            ) AS recent_count,
-
-            SUM(
-                CASE
-                    WHEN f.total_activity > 0 THEN 1
-                    ELSE 0
-                END
-            ) OVER (
-                PARTITION BY f.grid_id
-                ORDER BY t.timestamp
-                ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
-            ) AS recent_active_hours,
-
-            MAX(f.total_activity) OVER (
-                PARTITION BY f.grid_id
-                ORDER BY t.timestamp
-                ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
-            ) AS recent_peak,
-
-            SUM(f.internet_activity) OVER (
-                PARTITION BY f.grid_id
-                ORDER BY t.timestamp
-                ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
-            ) AS recent_internet,
-
-            SUM(f.total_activity) OVER (
-                PARTITION BY f.grid_id
-                ORDER BY t.timestamp
-                ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
-            ) AS recent_total,
-
-            AVG(
-                f.total_activity * f.total_activity
-            ) OVER (
-                PARTITION BY f.grid_id
-                ORDER BY t.timestamp
-                ROWS BETWEEN 23 PRECEDING AND CURRENT ROW
-            ) AS recent_square_avg
+            ) AS rn
 
         FROM fact_network_activity f
-        JOIN dim_time t
+
+        INNER JOIN dim_time t
             ON f.time_id = t.time_id
     ),
 
-    calculated AS (
+    recent AS (
         SELECT
-            grid_id,
-            feature_timestamp,
+            current.grid_id,
+            current.feature_timestamp,
 
-            recent_avg,
+            AVG(recent.total_activity) AS avg_activity,
 
-            CASE
-                WHEN previous_avg IS NULL THEN NULL
-                WHEN previous_avg = 0 THEN 0.0
-                ELSE
-                    (recent_avg - previous_avg)
-                    / previous_avg
-            END AS growth,
+            SUM(
+                CASE
+                    WHEN recent.total_activity > 0
+                    THEN 1
+                    ELSE 0
+                END
+            ) AS active_hours,
 
-            recent_active_hours,
+            MAX(recent.total_activity) AS peak_activity,
 
-            CASE
-                WHEN recent_avg IS NULL OR recent_avg = 0 THEN 0.0
-                ELSE recent_peak / recent_avg
-            END AS peak_ratio_value,
+            AVG(
+                recent.total_activity * recent.total_activity
+            ) AS square_avg,
 
-            CASE
-                WHEN recent_square_avg IS NULL
-                     OR recent_avg IS NULL
-                THEN 0.0
-                ELSE
-                    SQRT(
-                        MAX(
-                            0.0,
-                            recent_square_avg
-                            - (recent_avg * recent_avg)
-                        )
-                    )
-            END AS variability_value,
+            SUM(recent.internet_activity) AS internet_total,
 
-            CASE
-                WHEN recent_total IS NULL
-                     OR recent_total = 0
-                THEN 0.0
-                ELSE recent_internet / recent_total
-            END AS internet_share_value,
+            SUM(recent.total_activity) AS activity_total,
 
-            recent_count,
-            rn
+            COUNT(*) AS recent_hours
 
-        FROM ordered
+        FROM grid_hours current
+
+        INNER JOIN grid_hours recent
+            ON recent.grid_id = current.grid_id
+            AND recent.rn BETWEEN current.rn - 23 AND current.rn
+
+        GROUP BY
+            current.grid_id,
+            current.feature_timestamp,
+            current.rn
+    ),
+
+    baseline AS (
+        SELECT
+            current.grid_id,
+            current.feature_timestamp,
+
+            AVG(previous.total_activity) AS baseline_avg,
+
+            COUNT(*) AS baseline_hours
+
+        FROM grid_hours current
+
+        INNER JOIN grid_hours previous
+            ON previous.grid_id = current.grid_id
+            AND previous.rn BETWEEN current.rn - 47 AND current.rn - 24
+
+        GROUP BY
+            current.grid_id,
+            current.feature_timestamp,
+            current.rn
     )
 
     SELECT
-        grid_id,
-        feature_timestamp,
+        r.grid_id,
+        r.feature_timestamp,
 
-        recent_avg AS avg_activity,
+        r.avg_activity,
 
-        growth AS activity_growth,
+        CASE
+            WHEN b.baseline_avg IS NULL THEN 0.0
+            WHEN b.baseline_avg = 0 THEN 0.0
+            ELSE
+                (r.avg_activity - b.baseline_avg)
+                / b.baseline_avg
+        END AS activity_growth,
 
-        recent_active_hours AS active_hours,
+        r.active_hours,
 
-        peak_ratio_value AS peak_ratio,
+        CASE
+            WHEN r.avg_activity IS NULL
+                 OR r.avg_activity = 0
+            THEN 0.0
+            ELSE r.peak_activity / r.avg_activity
+        END AS peak_ratio,
 
-        variability_value AS variability,
+        SQRT(
+            MAX(
+                0.0,
+                r.square_avg - (r.avg_activity * r.avg_activity)
+            )
+        ) AS variability,
 
-        internet_share_value AS internet_share
+        CASE
+            WHEN r.activity_total IS NULL
+                 OR r.activity_total = 0
+            THEN 0.0
+            ELSE r.internet_total / r.activity_total
+        END AS internet_share
 
-    FROM calculated
+    FROM recent r
 
-    WHERE rn >= 48
-      AND recent_count = 24
-      AND growth IS NOT NULL
+    INNER JOIN baseline b
+        ON b.grid_id = r.grid_id
+        AND b.feature_timestamp = r.feature_timestamp
+
+    WHERE r.recent_hours = 24
+      AND b.baseline_hours = 24
     """
 
     connection.execute(sql)
@@ -303,24 +284,19 @@ def build_features(connection: sqlite3.Connection) -> None:
 
 
 def validate_features(connection: sqlite3.Connection) -> None:
-    """Run data-quality checks on the generated feature table."""
-
-    required_columns = {
-        "grid_id",
-        "feature_timestamp",
-        "avg_activity",
-        "activity_growth",
-        "active_hours",
-        "peak_ratio",
-        "variability",
-        "internet_share",
-    }
+    """Validate generated feature data."""
 
     rows = connection.execute(
         "PRAGMA table_info(network_features)"
     ).fetchall()
 
     actual_columns = {row[1] for row in rows}
+
+    required_columns = {
+        "grid_id",
+        "feature_timestamp",
+        *FEATURE_COLUMNS,
+    }
 
     missing = required_columns - actual_columns
 
@@ -335,19 +311,20 @@ def validate_features(connection: sqlite3.Connection) -> None:
         SELECT COUNT(*)
         FROM network_features
         WHERE
-            avg_activity IS NULL
+            grid_id IS NULL
+            OR feature_timestamp IS NULL
+            OR avg_activity IS NULL
             OR activity_growth IS NULL
             OR active_hours IS NULL
             OR peak_ratio IS NULL
             OR variability IS NULL
             OR internet_share IS NULL
-            OR feature_timestamp IS NULL
         """
     ).fetchone()[0]
 
     if null_count:
         raise RuntimeError(
-            f"Feature table contains {null_count} rows with NULL features."
+            f"Feature table contains {null_count} NULL rows."
         )
 
     invalid_count = connection.execute(
@@ -367,16 +344,20 @@ def validate_features(connection: sqlite3.Connection) -> None:
 
     if invalid_count:
         raise RuntimeError(
-            f"Feature table contains {invalid_count} invalid feature rows."
+            f"Feature table contains {invalid_count} invalid rows."
         )
 
     duplicate_count = connection.execute(
         """
         SELECT COUNT(*)
         FROM (
-            SELECT grid_id, feature_timestamp
+            SELECT
+                grid_id,
+                feature_timestamp
             FROM network_features
-            GROUP BY grid_id, feature_timestamp
+            GROUP BY
+                grid_id,
+                feature_timestamp
             HAVING COUNT(*) > 1
         )
         """
@@ -387,9 +368,125 @@ def validate_features(connection: sqlite3.Connection) -> None:
             f"Feature table contains {duplicate_count} duplicate keys."
         )
 
+    bad_numeric_count = 0
+
+    cursor = connection.execute(
+        """
+        SELECT
+            avg_activity,
+            activity_growth,
+            peak_ratio,
+            variability,
+            internet_share
+        FROM network_features
+        """
+    )
+
+    for row in cursor:
+        for value in row:
+            if not math.isfinite(float(value)):
+                bad_numeric_count += 1
+
+    if bad_numeric_count:
+        raise RuntimeError(
+            f"Feature table contains {bad_numeric_count} "
+            "NaN or infinite numeric values."
+        )
+
+
+def hand_check_grid(connection: sqlite3.Connection, grid_id: int = 4821) -> None:
+    """
+    Independently calculate avg_activity and peak_ratio for one grid.
+
+    This is intentionally calculated using a separate query so that
+    the generated feature values can be manually verified.
+    """
+
+    feature = connection.execute(
+        """
+        SELECT
+            feature_timestamp,
+            avg_activity,
+            peak_ratio
+        FROM network_features
+        WHERE grid_id = ?
+        ORDER BY feature_timestamp DESC
+        LIMIT 1
+        """,
+        (grid_id,),
+    ).fetchone()
+
+    if feature is None:
+        print(f"\nHand-check: grid {grid_id} has no feature row.")
+        return
+
+    timestamp, stored_avg, stored_peak_ratio = feature
+
+    values = connection.execute(
+        """
+        SELECT
+            f.total_activity
+        FROM fact_network_activity f
+        INNER JOIN dim_time t
+            ON f.time_id = t.time_id
+        WHERE
+            f.grid_id = ?
+            AND t.timestamp <= ?
+        ORDER BY t.timestamp DESC
+        LIMIT 24
+        """,
+        (grid_id, timestamp),
+    ).fetchall()
+
+    activities = [float(row[0]) for row in values]
+
+    if len(activities) != 24:
+        raise RuntimeError(
+            f"Hand-check expected 24 observations for grid {grid_id}, "
+            f"found {len(activities)}."
+        )
+
+    manual_avg = sum(activities) / 24
+    manual_peak = max(activities)
+
+    if manual_avg == 0:
+        manual_peak_ratio = 0.0
+    else:
+        manual_peak_ratio = manual_peak / manual_avg
+
+    print("\nHand-check:")
+    print(f"  Grid: {grid_id}")
+    print(f"  Timestamp: {timestamp}")
+    print(f"  Stored avg_activity: {stored_avg}")
+    print(f"  Manual avg_activity: {manual_avg}")
+    print(f"  Stored peak_ratio: {stored_peak_ratio}")
+    print(f"  Manual peak_ratio: {manual_peak_ratio}")
+
+    if not math.isclose(
+        float(stored_avg),
+        manual_avg,
+        rel_tol=1e-9,
+        abs_tol=1e-9,
+    ):
+        raise RuntimeError(
+            "avg_activity hand-check FAILED."
+        )
+
+    if not math.isclose(
+        float(stored_peak_ratio),
+        manual_peak_ratio,
+        rel_tol=1e-9,
+        abs_tol=1e-9,
+    ):
+        raise RuntimeError(
+            "peak_ratio hand-check FAILED."
+        )
+
+    print("  Hand-check: PASSED")
+
 
 def print_summary(connection: sqlite3.Connection) -> None:
-    """Print useful ML2 output information."""
+    """Print ML2 summary."""
 
     row_count = connection.execute(
         "SELECT COUNT(*) FROM network_features"
@@ -397,6 +494,10 @@ def print_summary(connection: sqlite3.Connection) -> None:
 
     grid_count = connection.execute(
         "SELECT COUNT(DISTINCT grid_id) FROM network_features"
+    ).fetchone()[0]
+
+    timestamp_count = connection.execute(
+        "SELECT COUNT(DISTINCT feature_timestamp) FROM network_features"
     ).fetchone()[0]
 
     min_timestamp = connection.execute(
@@ -414,21 +515,19 @@ def print_summary(connection: sqlite3.Connection) -> None:
     print(f"Database: {DB_PATH}")
     print(f"Feature rows: {row_count:,}")
     print(f"Grids represented: {grid_count:,}")
+    print(f"Feature timestamps: {timestamp_count:,}")
     print(f"First feature timestamp: {min_timestamp}")
     print(f"Last feature timestamp: {max_timestamp}")
 
     print("\nFeature columns:")
-    print("  avg_activity")
-    print("  activity_growth")
-    print("  active_hours")
-    print("  peak_ratio")
-    print("  variability")
-    print("  internet_share")
+    for column in FEATURE_COLUMNS:
+        print(f"  {column}")
+
     print("  feature_timestamp")
 
     print("\nWindow convention:")
-    print("  Recent window: previous 24 hours ending at t")
-    print("  Baseline: preceding 24 hours")
+    print("  Recent window: t-23h ... t")
+    print("  Baseline: t-47h ... t-24h")
     print("  feature_timestamp = t")
     print("  Future observations are never used")
 
@@ -449,6 +548,7 @@ def main() -> None:
         create_feature_table(connection)
         build_features(connection)
         validate_features(connection)
+        hand_check_grid(connection, 4821)
         print_summary(connection)
 
     finally:

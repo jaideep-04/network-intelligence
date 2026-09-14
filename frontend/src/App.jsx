@@ -234,34 +234,13 @@ function App() {
     Number(displayLimit)
   );
 
-  const visibleGridIds = useMemo(() => {
-    const ids = new Set(
-      visibleHotspots.map((item) => Number(item.grid_id))
-    );
+ const visibleGeoJson = useMemo(() => {
+  if (!geoJson) {
+    return null;
+  }
 
-    if (selectedGrid) {
-      ids.add(Number(selectedGrid));
-    }
-
-    return ids;
-  }, [visibleHotspots, selectedGrid]);
-
-  const visibleGeoJson = useMemo(() => {
-    if (!geoJson) {
-      return null;
-    }
-
-    return {
-      ...geoJson,
-      features: geoJson.features.filter((feature) => {
-        const cellId = Number(
-          feature.properties?.cellId
-        );
-
-        return visibleGridIds.has(cellId);
-      }),
-    };
-  }, [geoJson, visibleGridIds]);
+  return geoJson;
+}, [geoJson]);
 
   const hotspotByGrid = useMemo(() => {
     const map = new Map();

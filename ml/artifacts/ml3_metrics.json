@@ -1,0 +1,69 @@
+{
+  "model_version": "ml3-logistic-v1",
+  "model_type": "Logistic Regression",
+  "prediction_target": "unusual_activity_at_t_plus_1",
+  "train_accuracy": 0.8122909485609761,
+  "test_accuracy": 0.8040150334586121,
+  "test_precision": 0.2824771906007307,
+  "test_recall": 0.5604674192909487,
+  "test_f1": 0.37563384394828364,
+  "test_roc_auc": 0.6899023645562281,
+  "test_base_rate": 0.10518837656980475,
+  "confusion_matrix": [
+    [
+      178813,
+      35940
+    ],
+    [
+      11096,
+      14149
+    ]
+  ],
+  "train_rows": 959991,
+  "test_rows": 239998,
+  "feature_coefficients": [
+    {
+      "feature": "avg_activity",
+      "coefficient": 0.9824892803405958,
+      "absolute_coefficient": 0.9824892803405958
+    },
+    {
+      "feature": "variability",
+      "coefficient": -0.31868751961190045,
+      "absolute_coefficient": 0.31868751961190045
+    },
+    {
+      "feature": "peak_ratio",
+      "coefficient": 0.27800187306751833,
+      "absolute_coefficient": 0.27800187306751833
+    },
+    {
+      "feature": "internet_share",
+      "coefficient": -0.09238562504478641,
+      "absolute_coefficient": 0.09238562504478641
+    },
+    {
+      "feature": "activity_growth",
+      "coefficient": -0.0038851338543538414,
+      "absolute_coefficient": 0.0038851338543538414
+    },
+    {
+      "feature": "active_hours",
+      "coefficient": 0.0,
+      "absolute_coefficient": 0.0
+    }
+  ],
+  "thresholds": {
+    "low_5_percentile": 22.916249999999998,
+    "high_95_percentile": 2023.0232
+  },
+  "baseline": {
+    "baseline_type": "train-derived activity threshold",
+    "accuracy": 0.9328327736064467,
+    "precision": 0.7448349879259458,
+    "recall": 0.549811843929491,
+    "f1": 0.6326344576116681
+  },
+  "history_limit": "7-day source history",
+  "methodology_note": "Prototype trained on 7 days of source data. Target is a proxy unusual-activity label, not ground-truth anomaly detection."
+}

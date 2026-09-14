@@ -1,6 +1,9 @@
 from pathlib import Path
 import sqlite3
 import ast
+import joblib
+import pandas as pd
+import sys
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,9 +15,39 @@ import json
 # ============================================================
 # CONFIGURATION
 # ============================================================
+# ============================================================
+# ML5 IMPORT
+# ============================================================
+# ============================================================
+# PROJECT PATHS
+# ============================================================
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+
 DB_PATH = BASE_DIR / "warehouse" / "network_analytics.db"
+
+
+# ============================================================
+# ML5 IMPORT
+# ============================================================
+
+ML_DIR = BASE_DIR / "ml"
+
+if str(ML_DIR) not in sys.path:
+    sys.path.insert(0, str(ML_DIR))
+
+from ml5_predict import predict_risk as ml5_predict_risk
+
+MODEL_VERSION = "rf-v1"
+
+ML_FEATURE_COLUMNS = [
+    "avg_activity",
+    "activity_growth",
+    "active_hours",
+    "peak_ratio",
+    "variability",
+    "internet_share",
+]
 
 app = FastAPI(
     title="Network Intelligence API",
@@ -100,6 +133,8 @@ class NetworkAlert(BaseModel):
     status: str
     reason: str
     risk_score: float | None = None
+    risk_level: str | None = None
+    model_version: str | None = None
 
 
 class NetworkAlertsResponse(BaseModel):
@@ -308,6 +343,77 @@ def get_alert_thresholds(connection):
             0.05,
         ),
         "spike_multiplier": 2.0,
+    }
+def load_ml_model():
+    if not MODEL_PATH.exists():
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "ML model artifact is unavailable: "
+                f"{MODEL_PATH}"
+            ),
+        )
+
+    try:
+        model = joblib.load(MODEL_PATH)
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to load ML model: {exc}",
+        )
+
+    if not hasattr(model, "predict_proba"):
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Loaded ML artifact does not support "
+                "probability prediction"
+            ),
+        )
+
+    return model
+def get_ml6_risk_lookup(connection, timestamps):
+    """
+    Load ML6 scores for the requested timestamps.
+
+    Returns:
+        {(grid_id, feature_timestamp): {
+            "risk_score": float,
+            "risk_level": str,
+            "model_version": str,
+        }}
+    """
+
+    if not timestamps:
+        return {}
+
+    placeholders = ",".join("?" for _ in timestamps)
+
+    rows = connection.execute(
+        f"""
+        SELECT
+            grid_id,
+            feature_timestamp,
+            risk_score,
+            risk_level,
+            model_version
+        FROM network_risk_scores
+        WHERE feature_timestamp IN ({placeholders})
+        """,
+        tuple(timestamps),
+    ).fetchall()
+
+    return {
+        (
+            int(row["grid_id"]),
+            row["feature_timestamp"],
+        ): {
+            "risk_score": float(row["risk_score"]),
+            "risk_level": row["risk_level"],
+            "model_version": row["model_version"],
+        }
+        for row in rows
     }
 
 
@@ -672,6 +778,10 @@ def network_hotspots(
         ).fetchall()
 
         alerts = []
+        ml6_lookup = get_ml6_risk_lookup(
+            connection,
+            [effective_as_of],
+        )
 
         for row in rows:
 
@@ -699,7 +809,32 @@ def network_hotspots(
                             "Total activity exceeds "
                             "the 95th percentile threshold"
                         ),
-                        risk_score=None,
+                        risk_score=(
+    ml6_lookup.get(
+        (
+            int(row["grid_id"]),
+            row["timestamp"],
+        )
+    ) or {}
+).get("risk_score"),
+
+risk_level=(
+    ml6_lookup.get(
+        (
+            int(row["grid_id"]),
+            row["timestamp"],
+        )
+    ) or {}
+).get("risk_level"),
+
+model_version=(
+    ml6_lookup.get(
+        (
+            int(row["grid_id"]),
+            row["timestamp"],
+        )
+    ) or {}
+).get("model_version"),
                     )
                 )
 
@@ -797,6 +932,15 @@ def network_alerts(
         alerts = []
 
         previous_activity = {}
+        ml6_lookup = get_ml6_risk_lookup(
+            connection,
+            sorted(
+                {
+                    row["timestamp"]
+                    for row in rows
+                }
+            ),
+        )
 
         for row in rows:
 
@@ -837,6 +981,32 @@ def network_alerts(
                             "Total activity exceeds "
                             "the 95th percentile threshold"
                         ),
+                                                risk_score=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("risk_score"),
+
+                        risk_level=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("risk_level"),
+
+                        model_version=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("model_version"),
                     )
                 )
 
@@ -866,6 +1036,32 @@ def network_alerts(
                             "Internet activity exceeds "
                             "the 95th percentile threshold"
                         ),
+                                                risk_score=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("risk_score"),
+
+                        risk_level=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("risk_level"),
+
+                        model_version=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("model_version"),
                     )
                 )
 
@@ -901,6 +1097,32 @@ def network_alerts(
                             "Total activity is more than "
                             "2 times the previous hourly value"
                         ),
+                                                risk_score=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("risk_score"),
+
+                        risk_level=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("risk_level"),
+
+                        model_version=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("model_version"),
                     )
                 )
 
@@ -930,6 +1152,32 @@ def network_alerts(
                             "Total activity is below "
                             "the 5th percentile threshold"
                         ),
+                                                risk_score=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("risk_score"),
+
+                        risk_level=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("risk_level"),
+
+                        model_version=(
+                            ml6_lookup.get(
+                                (
+                                    grid_id,
+                                    timestamp,
+                                )
+                            ) or {}
+                        ).get("model_version"),
                     )
                 )
 
@@ -1186,20 +1434,130 @@ def network_grid_features(grid_id: int):
 
     finally:
         connection.close()
+# ============================================================
+# ML5 - MODEL INTEGRATION / RISK PREDICTION
+# ============================================================
+# ============================================================
+# ML5 - PREDICT RISK
+# ============================================================
+
 @app.post(
     "/network/predict-risk",
     response_model=PredictRiskResponse,
 )
 def predict_risk(request: PredictRiskRequest):
 
+    try:
+
+        prediction = ml5_predict_risk(
+            avg_activity=request.avg_activity,
+            activity_growth=request.activity_growth,
+            active_hours=request.active_hours,
+            peak_ratio=request.peak_ratio,
+            variability=request.variability,
+            internet_share=request.internet_share,
+        )
+
+        return PredictRiskResponse(
+            **prediction
+        )
+
+    except FileNotFoundError as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(exc),
+        )
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    except Exception as exc:
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"ML5 prediction failed: {exc}",
+        )    # --------------------------------------------------------
+    # Generate prediction probability
+    #
+    # Class 1 = unusual activity
+    # Class 0 = normal activity
+    # --------------------------------------------------------
+
+    try:
+        probabilities = model.predict_proba(
+            model_input
+        )
+
+        classes = list(model.classes_)
+
+        if 1 not in classes:
+            raise HTTPException(
+                status_code=500,
+                detail=(
+                    "Loaded ML model does not contain "
+                    "the expected positive class"
+                ),
+            )
+
+        positive_class_index = classes.index(1)
+
+        risk_score = float(
+            probabilities[0][positive_class_index]
+        )
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"ML prediction failed: {exc}",
+        )
+
+    # --------------------------------------------------------
+    # Convert probability into operational risk level.
+    #
+    # These are presentation bands, not a retraining threshold:
+    #
+    # < 0.33       LOW
+    # 0.33 - <0.66 MEDIUM
+    # >= 0.66      HIGH
+    # --------------------------------------------------------
+
+    if risk_score >= 0.66:
+        risk_level = "HIGH"
+
+    elif risk_score >= 0.33:
+        risk_level = "MEDIUM"
+
+    else:
+        risk_level = "LOW"
+
+    # --------------------------------------------------------
+    # Return the existing ML5 API contract.
+    #
+    # No request or response fields have been changed.
+    # --------------------------------------------------------
+
     return PredictRiskResponse(
-        risk_score=0.0,
-        risk_level="STUB",
-        model_version="stub-v1",
+        risk_score=round(
+            risk_score,
+            6,
+        ),
+        risk_level=risk_level,
+        model_version=MODEL_VERSION,
         explanation_note=(
-            "Prediction implementation is currently a stub. "
-            "The trained ML model will replace this implementation "
-            "in ML5 without changing the API contract."
+            "Risk score estimates the likelihood of an "
+            "unusual activity pattern in the next hourly "
+            "interval. Higher scores indicate that the grid "
+            "activity pattern should be investigated. "
+            "This prediction does not indicate congestion, "
+            "capacity problems, or a confirmed network fault."
         ),
     )
 @app.get(

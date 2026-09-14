@@ -1,0 +1,112 @@
+{
+  "model_version": "ml4-random-forest-v1",
+  "primary_problem": "Predict unusual communication activity at the next hourly interval.",
+  "prediction_unit": "grid_id + hourly time interval",
+  "prediction_horizon": "t+1 hour",
+  "available_history": "7 days",
+  "feature_columns": [
+    "avg_activity",
+    "activity_growth",
+    "active_hours",
+    "peak_ratio",
+    "variability",
+    "internet_share"
+  ],
+  "target": {
+    "definition": "Next-hour activity is unusual when it is above the training 95th percentile or below the training 5th percentile.",
+    "low_threshold": 22.916249999999998,
+    "high_threshold": 2023.0232
+  },
+  "split": {
+    "method": "chronological 80/20",
+    "train_rows": 959991,
+    "test_rows": 239998,
+    "train_start": "2013-11-03 04:30:00+05:30",
+    "train_end": "2013-11-07 03:30:00+05:30",
+    "test_start": "2013-11-07 04:30:00+05:30",
+    "test_end": "2013-11-08 03:30:00+05:30"
+  },
+  "models": {
+    "Logistic Regression": {
+      "train_accuracy": 0.8122909485609761,
+      "test_accuracy": 0.8040150334586121,
+      "test_precision": 0.2824771906007307,
+      "test_recall": 0.5604674192909487,
+      "test_f1": 0.37563384394828364,
+      "test_roc_auc": 0.6899023645562281,
+      "confusion_matrix": [
+        [
+          178813,
+          35940
+        ],
+        [
+          11096,
+          14149
+        ]
+      ]
+    },
+    "Random Forest": {
+      "train_accuracy": 0.9072741306949753,
+      "test_accuracy": 0.8893782448187069,
+      "test_precision": 0.4858347093073781,
+      "test_recall": 0.8857991681521094,
+      "test_f1": 0.6275027008825221,
+      "test_roc_auc": 0.9567309784331199,
+      "confusion_matrix": [
+        [
+          191087,
+          23666
+        ],
+        [
+          2883,
+          22362
+        ]
+      ]
+    }
+  },
+  "baseline": {
+    "accuracy": 0.9328327736064467,
+    "precision": 0.7448349879259458,
+    "recall": 0.549811843929491,
+    "f1": 0.6326344576116681,
+    "confusion_matrix": [
+      [
+        209998,
+        4755
+      ],
+      [
+        11365,
+        13880
+      ]
+    ]
+  },
+  "best_model": {
+    "name": "Random Forest",
+    "test_accuracy": 0.8893782448187069,
+    "test_precision": 0.4858347093073781,
+    "test_recall": 0.8857991681521094,
+    "test_f1": 0.6275027008825221,
+    "test_roc_auc": 0.9567309784331199
+  },
+  "comparison": {
+    "baseline_f1": 0.6326344576116681,
+    "best_ml_f1": 0.6275027008825221,
+    "f1_difference": -0.005131756729146009,
+    "baseline_recall": 0.549811843929491,
+    "best_ml_recall": 0.8857991681521094,
+    "recall_difference": 0.33598732422261834
+  },
+  "selection_rule": "Highest ML test F1, followed by recall and ROC-AUC as tie-breakers.",
+  "leakage_validation": "PASSED",
+  "chronological_split": "PASSED",
+  "history_limitation": "Results are based on only seven days of source history and should be treated as a prototype.",
+  "non_goals": [
+    "congestion prediction",
+    "capacity prediction",
+    "throughput prediction",
+    "latency prediction",
+    "packet loss prediction",
+    "radio utilization prediction",
+    "confirmed fault or outage detection"
+  ]
+}
